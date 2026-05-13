@@ -52,44 +52,75 @@ class MovellaStreamer:
         # Setup keyboard listener
         self.listener = Listener(on_press=self._on_press)
         self.listener.start()
-
-        # self.listener_control = Listener(on_press=self._on_press_control_sign)
-        # self.listener_control.start()
-
-        # self.listener_trigger = Listener(on_press=self._on_press_trigger_sign)
-        # self.listener_trigger.start()
-
-        # self.listener_start = Listener(on_press=self._on_press_start)
-        # self.listener_start.start()
-
-        # self.listener_end = Listener(on_press=self._on_press_end)
-        # self.listener_end.start()
     
     def _on_press(self, key):
         # This function runs on the background and checks if a keyboard key was pressed
         if key == Key.esc:
             self.end = True
 
-    # def _on_press_control_sign(self, key):
-    #     # This function runs on the background and checks if a keyboard key was pressed
-    #     if hasattr(key, 'char') and key.char == 'c':
-    #         self.flip_sign_control *= -1
-    
-    # def _on_press_trigger_sign(self, key):
-    #     # This function runs on the background and checks if a keyboard key was pressed
-    #     if hasattr(key, 'char') and key.char == 't' and self.n_trackers == 5:
-    #         self.flip_sign_trigger *= -1
+    def _init_realtime_plot(self, n_signals):
+        """Initialize a realtime plot for one or two streamed values."""
+        plt.ion()
+        self._plot_histories = [[] for _ in range(n_signals)]
 
-    # def _on_press_start(self, key):
-    #     # This function runs on the background and checks if a keyboard key was pressed
-    #     if hasattr(key, 'char') and key.char == 's' and self.n_trackers == 5:
-    #         self.start_quat = True
-            
-    
-    # def _on_press_end(self, key):
-    #     # This function runs on the background and checks if a keyboard key was pressed
-    #     if hasattr(key, 'char') and key.char == 'e' and self.n_trackers == 5:
-    #         self.end_quat = True
+        if n_signals == 2:
+            self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, sharex=True, figsize=(10, 6))
+            self.line1, = self.ax1.plot([], [], 'r-')
+            self.line2, = self.ax2.plot([], [], 'b-')
+            self.ax1.set_ylabel('Control Value')
+            self.ax2.set_ylabel('Trigger Value')
+            self.ax2.set_xlabel('Sample')
+            self.ax1.set_ylim(0, 1)
+            self.ax2.set_ylim(0, 1)
+        else:
+            self.fig, self.ax1 = plt.subplots(figsize=(10, 4))
+            self.line1, = self.ax1.plot([], [], 'r-')
+            self.ax1.set_ylabel('Control Value')
+            self.ax1.set_xlabel('Sample')
+            self.ax1.set_ylim(0, 1)
+
+        self.ax1.grid(True)
+        if n_signals == 2:
+            self.ax2.grid(True)
+        self.fig.tight_layout()
+        plt.show(block=False)
+
+    def _update_realtime_plot(self, values):
+        """Update the realtime plot with the latest streamed values."""
+        if not hasattr(self, '_plot_histories'):
+            return
+
+        if not isinstance(values, (list, tuple, np.ndarray)):
+            values = [values]
+
+        for history, value in zip(self._plot_histories, values):
+            history.append(float(value))
+
+        max_points = 400
+        for history in self._plot_histories:
+            if len(history) > max_points:
+                del history[:-max_points]
+
+        x_data = np.arange(len(self._plot_histories[0]))
+        self.line1.set_data(x_data, self._plot_histories[0])
+        self.ax1.relim()
+        self.ax1.autoscale_view(scalex=True, scaley=False)
+        self.ax1.set_ylim(0, 1)
+
+        if len(self._plot_histories) == 2:
+            self.line2.set_data(x_data, self._plot_histories[1])
+            self.ax2.relim()
+            self.ax2.autoscale_view(scalex=True, scaley=False)
+            self.ax2.set_ylim(0, 1)
+
+        self.fig.canvas.draw()
+        self.fig.canvas.flush_events()
+        plt.pause(0.001)
+
+    def _close_realtime_plot(self):
+        """Close the realtime plot if it was created."""
+        if hasattr(self, 'fig'):
+            plt.close(self.fig)
 
     def initialize(self):
         self.xdpcHandler = XdpcHandler()
@@ -179,11 +210,6 @@ class MovellaStreamer:
                 print("\n", end="", flush=True)
                 self.orientationResetDone = True
 
-            # if self.first_flag:
-            #     print("Waiting for 5 seconds before collecting data...")
-            #     time.sleep(5)
-            #     print("Starting to collect data...")
-
             for j in range(self.n_trackers):
                 packet = self.xdpcHandler.getNextPacket(self.working_tracker[self.idx_sorted_tracker[j]])
                 if packet.containsOrientation():
@@ -195,11 +221,12 @@ class MovellaStreamer:
                     data = np.concatenate((data, zeros))
                     print("Tracker " + self.working_tracker[self.idx_sorted_tracker[j]] + " is not working.")
 
-            # if self.first_flag:
-            #     self.first_data = data
-            #     print("First data received.")
-            #     self.first_flag = False
+            # On first valid full packet, store as baseline to remove inter-tracker offsets
+            if self.first_flag and len(data) >= 4 * self.n_trackers:
+                self.first_data = data.copy()
+                self.first_flag = False
 
+            # Apply baseline compensation if available
             if len(data) >= 4 * self.n_trackers and len(self.first_data) >= 4 * self.n_trackers:
                 for i in range(1, self.n_trackers):
                     data[i*4:(i+1)*4] = data[i*4:(i+1)*4] - (self.first_data[i*4:(i+1)*4] - self.first_data[0:4])
@@ -267,7 +294,7 @@ class MovellaStreamer:
                 print("UDP server closed.")
     
 
-    def calibrate(self, calibration_name="movellaValue1Phase"):
+    def calibrate(self, calibration_name="movellaValue1Phase", saved_data=True):
         """
         Calibrate the Movella system by recording data and computing PCA parameters
         
@@ -303,6 +330,15 @@ class MovellaStreamer:
 
         print(f"Starting calibration")
 
+        # Warm-up: discard a short sequence to let sensors and filters stabilise
+        warmup_samples = max(5, int(self.frequency))
+        print(f"Warming up: discarding {warmup_samples} samples...")
+        for _ in range(warmup_samples):
+            _ = self.get_latest_data()
+            time.sleep(self.sample_rate)
+        
+        print("Perform the calibration movement now.")
+
         # Record data for the specified duration
         while not self.end:
             latest = self.get_latest_data()
@@ -318,20 +354,22 @@ class MovellaStreamer:
         if not all_data:
             raise RuntimeError("No data collected during calibration")
         
-         # Ask for filename
-        filename_prefix = input("PHASE 1: Enter filename to save data (without extension): ").strip()
-        if not filename_prefix:
-            print("PHASE 1: No filename provided. Data not saved.")
-        else:
-            import datetime
-            currentDateTime = datetime.datetime.now().strftime('%Y_%m_%d_%H%M%S')
-            filename = f"data/{filename_prefix}_{currentDateTime}.mat"
+        if saved_data:
+            # Ask for filename
+            filename_prefix = input("PHASE 1: Enter filename to save data (without extension): ").strip()
+            if not filename_prefix:
+                print("PHASE 1: No filename provided. Data not saved.")
+            else:
+                import datetime
+                currentDateTime = datetime.datetime.now().strftime('%Y_%m_%d_%H%M%S')
+                filename = f"data/{filename_prefix}_{currentDateTime}.mat"
 
-            savemat(filename, {
-                'tracked_data': all_data_save,
-            })
+                savemat(filename, {
+                    'tracked_data': all_data_save,
+                })
 
-            print(f"PHASE 1: Data saved to {filename}")
+                print(f"PHASE 1: Data saved to {filename}")
+        
         # Convert to numpy array
         all_data = np.array(all_data)  # Shape: (n_samples, n_trackers, 4)
         
@@ -458,24 +496,13 @@ class MovellaStreamer:
             plt.legend(['Projection', 'Mean local Minima', 'Mean local Maxima'], loc='best')
             plt.grid(True)
 
-            # plt.figure()
-            # plt.plot(calibration_signal_01)
-            # # Plot peaks
-            # plt.plot(max_indxs, max_pks, 'r*', label="High peaks")
-            # plt.plot(min_indxs, min_pks, 'g*', label="Low peaks")
-
-            # # Add threshold reference lines (like MATLAB’s 0.7 and 0.3)
-            # plt.axhline(new_scaling_val, color='k', linestyle='--', label=f"High threshold {new_scaling_val}")
-            # plt.axhline(1 - new_scaling_val, color='k', linestyle='--', label=f"Low threshold {1 - new_scaling_val}")
-
-            # plt.title("Calibration signal with peaks")
             plt.show()
         
         
         
         return calibration_data
     
-    def calibrate_2arm(self, imu = "2arm"): # imu can be "hand"(right) or "2arm"(left)
+    def calibrate_2arm(self, imu = "2arm", saved_data=True): # imu can be "hand"(right) or "2arm"(left)
         """
         Calibrate the Movella system for 2-arm trigger signal.
         Press 's' to set START quaternion, 'e' to set END quaternion, 'q' to finish and save.
@@ -485,7 +512,8 @@ class MovellaStreamer:
         timestamps = []
         q_start = None
         q_end = None
-
+        q_start_array = np.zeros(4)
+        q_end_array = np.zeros(4)
 
         print("Starting 2-arm calibration.")
         print("Press 's' to set START quaternion, 'e' to set END quaternion, 'esc' to finish and save.")
@@ -527,31 +555,32 @@ class MovellaStreamer:
         # Save all raw data
         all_data = np.array(all_data)  # (n_samples, n_trackers, 4)
 
-        # Ask for filename
-        filename_prefix = input("PHASE 2: Enter filename to save data (without extension): ").strip()
-        if not filename_prefix:
-            print("PHASE 2: No filename provided. Data not saved.")
-        else:
-            import datetime
-            currentDateTime = datetime.datetime.now().strftime('%Y_%m_%d_%H%M%S')
-            if self.n_trackers <=2:
-                filename = f"data/{filename_prefix}_2arm_{imu}_{currentDateTime}.mat"
+        # Prepare arrays for saving
+        q_start_array = q_start if q_start is not None else np.zeros(4)
+        q_end_array = q_end if q_end is not None else np.zeros(4)
+
+        if saved_data:
+            # Ask for filename
+            filename_prefix = input("PHASE 2: Enter filename to save data (without extension): ").strip()
+            if not filename_prefix:
+                print("PHASE 2: No filename provided. Data not saved.")
             else:
-                filename = f"data/{filename_prefix}_2arm_{currentDateTime}.mat"
+                import datetime
+                currentDateTime = datetime.datetime.now().strftime('%Y_%m_%d_%H%M%S')
+                if self.n_trackers <=2:
+                    filename = f"data/{filename_prefix}_2arm_{imu}_{currentDateTime}.mat"
+                else:
+                    filename = f"data/{filename_prefix}_2arm_{currentDateTime}.mat"
 
-            # Prepare arrays for saving
-            q_start_array = q_start if q_start is not None else np.zeros(4)
-            q_end_array = q_end if q_end is not None else np.zeros(4)
+                savemat(filename, {
+                    'tracked_data_2arm': all_data_save,
+                    'q_start': q_start,
+                    'q_end': q_end,
+                    'q_start_array': q_start_array,
+                    'q_end_array': q_end_array
+                })
 
-            savemat(filename, {
-                'tracked_data_2arm': all_data_save,
-                'q_start': q_start,
-                'q_end': q_end,
-                'q_start_array': q_start_array,
-                'q_end_array': q_end_array
-            })
-
-            print(f"PHASE 2: Data saved to {filename}")
+                print(f"PHASE 2: Data saved to {filename}")
 
         if self.n_trackers <=2:
             savemat(f"movellaValue_{imu}.mat", {
@@ -569,7 +598,7 @@ class MovellaStreamer:
 
     
     
-    def compute_kernel(self, send_ip="172.16.0.1", send_port=8052):
+    def compute_kernel(self, send_ip="172.16.0.1", send_port=8052, plot_data=False):
 
         SEND_IP = send_ip
         SEND_PORT1 = send_port
@@ -611,6 +640,9 @@ class MovellaStreamer:
             flip_sign_trigger = 1  # Variable to track sign flipping
             triggerVal_01 = 0.0
 
+        if plot_data:
+            self._init_realtime_plot(2 if self.n_trackers == 5 else 1)
+
         try:
             print("Starting kernel loop. Press ESC to stop.")
             while not self.end:
@@ -651,7 +683,7 @@ class MovellaStreamer:
 
                 controlVal_01 = max(0.0, min(1.0, controlVal_01))
 
-                print(f"Control Value: {controlVal_01:.3f}", end="")
+                # print(f"Control Value: {controlVal_01:.3f}", end="")
 
                 # Trigger computation
 
@@ -676,10 +708,15 @@ class MovellaStreamer:
                     # Clamp to [0,1]
                     triggerVal_01 = max(0.0, min(1.0,triggerVal_01))
 
+                    if plot_data:
+                        self._update_realtime_plot([controlVal_01, triggerVal_01])
+
                     # Prepare and send UDP packet
                     arr = np.array([controlVal_01, triggerVal_01], dtype=np.float64)
                     sock.sendto(arr.tobytes(), (SEND_IP, SEND_PORT1))
                 else:
+                    if plot_data:
+                        self._update_realtime_plot([controlVal_01])
                     arr = np.array([controlVal_01], dtype=np.float64)
                     sock.sendto(arr.tobytes(), (SEND_IP, SEND_PORT1))
                 
@@ -699,9 +736,11 @@ class MovellaStreamer:
             # Close the socket after finishing
             print("Sensor handler stopped.")
             sock.close()
+            if plot_data:
+                self._close_realtime_plot()
             print("UDP socket closed.")
 
-    def compute_easy_kernel(self, send_ip="172.16.0.1", send_port=8052):
+    def compute_easy_kernel(self, send_ip="172.16.0.1", send_port=8052, plot_data=False):
         SEND_IP = send_ip
         SEND_PORT1 = send_port
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -747,6 +786,9 @@ class MovellaStreamer:
             # Relative quaternion: q_end * conj(q_start)
             q_calib_2arm = q_end_r_2arm * q_start_r_2arm.inv()
             rotvec_calib_2arm = q_calib_2arm.as_rotvec()
+
+        if plot_data:
+            self._init_realtime_plot(2 if self.n_trackers == 2 else 1)
 
         try:
             print("Starting kernel loop. Press ESC to stop.")
@@ -813,11 +855,16 @@ class MovellaStreamer:
                     # Clamp to [0,1]
                     controlVal_2arm = max(0.0, min(1.0,controlVal_2arm))
 
+                    if plot_data:
+                        self._update_realtime_plot([controlVal_hand, controlVal_2arm])
+
                     # Prepare and send UDP packet
                     arr = np.array([controlVal_hand, controlVal_2arm], dtype=np.float64)
                     sock.sendto(arr.tobytes(), (SEND_IP, SEND_PORT1))
                     # print(f"Hand: {controlVal_hand:.3f}, 2arm: {controlVal_2arm:.3f}")
                 else:
+                    if plot_data:
+                        self._update_realtime_plot([controlVal_hand])
                     arr = np.array([controlVal_hand], dtype=np.float64)
                     sock.sendto(arr.tobytes(), (SEND_IP, SEND_PORT1))
                 
@@ -837,10 +884,10 @@ class MovellaStreamer:
             # Close the socket after finishing
             print("Sensor handler stopped.")
             sock.close()
+            if plot_data:
+                self._close_realtime_plot()
             print("UDP socket closed.")
             
-
-
 
     def cleanup(self):
 

@@ -32,6 +32,7 @@ MovellaStreamer(config_path, setup_name, udp_ip=None, udp_port=None, frequency=6
 Parameters:
 - `config_path`: Path to `config.json` with the tracker MAC addresses.
 - `setup_name`: Key inside the configuration file, for example `UNISI`.
+- `config.json` stores one or more device-specific tracker layouts. `UNISI` is the configuration used in this repository, but you should change it to match the MAC addresses of the trackers you are actually using.
 - `udp_ip`, `udp_port`: Optional UDP destination for streaming.
 - `frequency`: Sampling frequency in Hz.
 - `n_trackers`: Number of trackers to use. Supported values in the class are `1`, `2`, `4`, and `5`.
@@ -119,6 +120,8 @@ from movella_streamer_class import MovellaStreamer
 tracker = MovellaStreamer("config.json", "UNISI", udp_ip="127.0.0.1", udp_port=8051, n_trackers=4)
 tracker.initialize()
 ```
+
+If you use a different set of trackers, update `config.json` and pass the matching configuration name instead of `UNISI`.
 
 ```python
 latest = tracker.get_latest_data()
