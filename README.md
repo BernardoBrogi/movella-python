@@ -2,6 +2,8 @@
 
 This repository contains a complete pipeline for tracking the motion of an arm using Movella Xsens IMU sensors. The system is designed to process motion data, perform calibration using Principal Component Analysis (PCA) to extract a one-dimensional control signal.
 
+This is especially relevant for extracting control signal from human motions to command an external device, like a robot. 
+
 ## Folder Structure
 
 This folder contains a Python wrapper for communicating with Movella Xsens IMU sensors via Bluetooth. It collects IMU data, supports calibration and kernel computation, and can transmit motion data through a UDP socket.
@@ -71,7 +73,7 @@ Parameters:
 - Install Python 3.8 (tested also with 3.9 and 3.10).
 - Set up the Movella Xsens IMU sensors.
 - Install the Movella DOT PC SDK from this [link](https://base.xsens.com/s/article/Movella-DOT-PC-SDK-Guide?language=en_US)
-- Python dependencies: `requirements.txt`
+
 
 ### Installation
 
@@ -101,7 +103,7 @@ pip install ./movelladot_pc_sdk-2023.6.0-cp38-none-linux_x86_64.whl
 
 If `pip` points to a different Python version, run pip through the target interpreter (for example `python -m pip install ...`).
 
-### Python Notebook Workflow
+### Usage
 
 The Python side is notebook-friendly, especially for calibration and live signal inspection. A typical notebook flow is:
 
@@ -136,3 +138,22 @@ tracker.stream_udp_loop()
 tracker.cleanup()
 ```
 
+### GUI
+
+
+# Cite Us!
+If you found this repo useful for your research, please cite it as:
+
+```bash
+@article{pozzi2025wearable,
+author = {Maria Pozzi and Nicole D’Aurizio and Bernardo Brogi and Giovanni Cortigiani and Leonardo Franco and Manish Shukla and Alessandro Giannotta and Simone Rossi and Sarah Skavron and Susanne Frennert and Gionata Salvietti and Monica Malvezzi and Domenico Prattichizzo},
+title ={Wearable and grounded supernumerary robotic limbs for sensorimotor augmentation in post-stroke patients},
+journal = {The International Journal of Robotics Research},
+volume = {0},
+number = {0},
+pages = {02783649251403013},
+year = {2025},
+doi = {10.1177/02783649251403013},
+URL = {https://doi.org/10.1177/02783649251403013},
+}
+```
