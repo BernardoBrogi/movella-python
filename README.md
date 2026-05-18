@@ -2,7 +2,7 @@
 
 This repository contains a complete pipeline for tracking the motion of an arm using Movella Xsens IMU sensors. The system is designed to process motion data, perform calibration using Principal Component Analysis (PCA) to extract a one-dimensional control signal.
 
-This is especially relevant for extracting control signal from human motions to command an external device, like a robot. 
+This is especially relevant for extracting control signals from human motions to command an external device, like a robot. To read the corresponding publication, go [here](https://journals.sagepub.com/doi/full/10.1177/02783649251403013).
 
 ## Folder Structure
 
