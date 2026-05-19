@@ -3,16 +3,16 @@ import struct
 import time
 import numpy as np
 import json
-from xdpchandler import *
+from functions.xdpchandler import *
 from sys import version_info as python_version_info
 from sklearn.decomposition import PCA
 from scipy.io import savemat, loadmat
 from scipy.signal import find_peaks
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation as R
-import getRelativeRotation_movella 
+import functions.getRelativeRotation_movella as getRelativeRotation_movella 
 from pynput.keyboard import Listener, Key
-import keyboard  # New import for keyboard handling
+import keyboard
 
 class MovellaStreamer:
     def __init__(self, config_path, setup_name, udp_ip=None, udp_port=None, frequency=60, n_trackers=5):

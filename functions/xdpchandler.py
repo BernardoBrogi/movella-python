@@ -31,7 +31,7 @@ import movelladot_pc_sdk
 from collections import defaultdict
 from threading import Lock
 from pynput import keyboard
-from user_settings import *
+from functions.user_settings import *
 import time
 
 waitForConnections = True
