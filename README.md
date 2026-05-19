@@ -1,93 +1,107 @@
 # Arm Motion Tracking System with Movella Xsens IMU Sensors
 
-This repository contains a complete pipeline for tracking the motion of an arm using Movella Xsens IMU sensors. The system is designed to process motion data, perform calibration using Principal Component Analysis (PCA) to extract a one-dimensional control signal.
+This repository provides a pipeline for tracking arm motion with Movella Xsens IMU sensors.
+It includes a Python wrapper for initializing the sensors, reading their data directly in Python, streaming values over UDP, and processing motion signals with PCA to produce a one-dimensional control signal.
 
-This is especially relevant for extracting control signals from human motions to command an external device, like a robot. To read the corresponding publication, go [here](https://journals.sagepub.com/doi/full/10.1177/02783649251403013).
+This work is part of a study that aims to map residual motion of people with post-stroke conditions or spinal cord injury to control an external robotic device. The paper can be read here: [Pozzi et al., 2025](https://journals.sagepub.com/doi/10.1177/02783649251403013)
 
-## Folder Structure
+## Overview
 
-This folder contains a Python wrapper for communicating with Movella Xsens IMU sensors via Bluetooth. It collects IMU data, supports calibration and kernel computation, and can transmit motion data through a UDP socket.
+The code communicates with Movella Xsens IMU sensors over Bluetooth. It supports real-time acquisition, calibration, kernel computation, and UDP transmission of motion data.
 
-**Main Features:**
-- Establishes Bluetooth connection with Movella Xsens sensors.
-- Streams IMU data in real-time.
+### Main Features
+
+- Connects to Movella Xsens sensors over Bluetooth.
+- Streams IMU data in real time.
 - Calibrates motion signals with PCA.
 - Computes normalized kernel values for downstream control.
 - Sends motion data through UDP.
-  
-**Key Script:**
 
-**`movella_streamer_class.py`**
-   - Provides the `MovellaStreamer` class used for initialization, streaming, calibration, and kernel generation.
-   - Is the preferred entry point for Python scripts and Jupyter notebooks.
+### Main Script
 
-### MovellaStreamer Python Class
+The main entry point is [movella_streamer_class.py](movella_streamer_class.py), which exposes the `MovellaStreamer` class for initialization, streaming, calibration, and kernel generation.
 
-The `MovellaStreamer` class wraps the Movella Xsens DOT SDK and provides a simple pipeline for data collection and processing.
+## MovellaStreamer Class
 
-#### Constructor
+The `MovellaStreamer` class wraps the Movella Xsens DOT SDK and provides a simple workflow for data collection and processing.
+
+### Constructor
 
 ```python
 MovellaStreamer(config_path, setup_name, udp_ip=None, udp_port=None, frequency=60, n_trackers=5)
 ```
 
 Parameters:
-- `config_path`: Path to `config.json` with the tracker MAC addresses.
+
+- `config_path`: Path to [config.json](config.json), which contains the tracker MAC addresses.
 - `setup_name`: Key inside the configuration file, for example `UNISI`.
-- `config.json` stores one or more device-specific tracker layouts. `UNISI` is the configuration used in this repository, but you should change it to match the MAC addresses of the trackers you are actually using.
 - `udp_ip`, `udp_port`: Optional UDP destination for streaming.
 - `frequency`: Sampling frequency in Hz.
-- `n_trackers`: Number of trackers to use. Supported values in the class are `1`, `2`, `4`, and `5`.
+- `n_trackers`: Number of trackers to use. Supported values are `1`, `2`, `4`, and `5`.
 
-#### Main Methods
+The `config.json` file stores one or more tracker layouts. The included `UNISI` configuration is an example; update it to match the MAC addresses of the trackers you are using.
+
+### Main Methods
 
 `initialize()`
+
 - Scans for Movella DOT devices, connects to them, and starts measurement mode.
 
 `get_latest_data()`
-- Returns the most recent sample as a dictionary with timestamp, number of working trackers, and quaternion data.
+
+- Returns the most recent sample as a dictionary containing the timestamp, the number of working trackers, and quaternion data.
 
 `stream_loop()`
+
 - Continuously prints the latest tracker data in the terminal.
 
 `stream_udp_loop()`
+
 - Continuously streams the latest data over UDP.
 
-`calibrate(calibration_name="movellaValue1Phase")`
-- Records repeated motions, computes PCA, and saves calibration parameters for one-phase control.
-
-`calibrate_2arm(imu="2arm")`
-- Records a start and end quaternion for two-arm trigger calibration.
-
-`compute_kernel(send_ip="172.16.0.1", send_port=8052)`
-- Computes the normalized kernel value and sends it over UDP.
-
-`compute_easy_kernel(send_ip="172.16.0.1", send_port=8052)`
-- Simplified kernel computation for hand-only or hand-plus-second-arm setups.
-
 `cleanup()`
+
 - Stops measurement, disables logging, and resets device orientation.
 
+### Control Signal Methods
 
-### Prerequisites
-- Install Python 3.8 (tested also with 3.9 and 3.10).
-- Set up the Movella Xsens IMU sensors.
-- Install the Movella DOT PC SDK from this [link](https://base.xsens.com/s/article/Movella-DOT-PC-SDK-Guide?language=en_US)
+`calibrate(calibration_name="movellaValue1Phase", saved_data=True)`
 
+- Records repeated motions, computes PCA, and saves calibration parameters for one-phase control.
 
-### Installation
+`calibrate_2arm(imu="2arm", saved_data=True)`
 
-Install dependencies:
+- Records a start and end quaternion for two-arm trigger calibration.
+
+`compute_kernel(send_ip="172.16.0.1", send_port=8052, plot_data=False)`
+
+- Computes the normalized kernel value and sends it over UDP.
+
+`compute_easy_kernel(send_ip="172.16.0.1", send_port=8052, plot_data=False)`
+
+- Computes a simplified kernel for hand-only or hand-plus-second-arm setups.
+
+## Requirements
+
+- Python 3.8, 3.9, or 3.10.
+- Movella Xsens IMU sensors.
+- Movella DOT PC SDK, available from the [official guide](https://base.xsens.com/s/article/Movella-DOT-PC-SDK-Guide?language=en_US).
+- Python dependencies listed in [requirements.txt](requirements.txt).
+
+## Installation
+
+Install the Python dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Then install the Movella SDK wheel (`.whl`) that matches your Python version and operating system.
-The repository already includes two wheel files:
+Then install the Movella SDK wheel that matches your Python version and operating system.
 
-- `movelladot_pc_sdk-2023.6.0-cp310-none-win_amd64.whl` -> for **Windows + Python 3.10**
-- `movelladot_pc_sdk-2023.6.0-cp38-none-linux_x86_64.whl` -> for **Linux + Python 3.8**
+The repository includes these wheels:
+
+- `movelladot_pc_sdk-2023.6.0-cp310-none-win_amd64.whl` for Windows and Python 3.10
+- `movelladot_pc_sdk-2023.6.0-cp38-none-linux_x86_64.whl` for Linux and Python 3.8
 
 Examples:
 
@@ -101,59 +115,59 @@ pip install .\movelladot_pc_sdk-2023.6.0-cp310-none-win_amd64.whl
 pip install ./movelladot_pc_sdk-2023.6.0-cp38-none-linux_x86_64.whl
 ```
 
-If `pip` points to a different Python version, run pip through the target interpreter (for example `python -m pip install ...`).
+## Usage
 
-### Usage
+To extract a control signal from a single arm, wear the Movella sensors as shown below:
 
-The Python side is notebook-friendly, especially for calibration and live signal inspection. A typical notebook flow is:
+![Wear the Movellas setup](media/movella_placement.jpg)
 
-1. Import the class and create a tracker instance.
-2. Run `initialize()` once to connect the sensors.
-3. Use `get_latest_data()` or `stream_loop()` to inspect live quaternions.
-4. Run `calibrate()` or `calibrate_2arm()` to generate `.mat` calibration files.
-5. Run `compute_kernel()` or `compute_easy_kernel()` to stream normalized control values.
-6. Call `cleanup()` at the end of the notebook to stop measurements safely.
-
-Example notebook cells:
-
-```python
-from movella_streamer_class import MovellaStreamer
-
-tracker = MovellaStreamer("config.json", "UNISI", udp_ip="127.0.0.1", udp_port=8051, n_trackers=4)
-tracker.initialize()
-```
-
-If you use a different set of trackers, update `config.json` and pass the matching configuration name instead of `UNISI`.
-
-```python
-latest = tracker.get_latest_data()
-latest
-```
-
-```python
-tracker.stream_udp_loop()
-```
-
-```python
-tracker.cleanup()
-```
-
-### GUI
-
-
-# Cite Us!
-If you found this repo useful for your research, please cite it as:
+Start the GUI with:
 
 ```bash
+python movella_gui.py
+```
+
+The GUI will open as shown here:
+
+![GUI](media/movella_gui.png)
+
+From the GUI, you can configure:
+
+- The configuration file name.
+- The setup name defined inside the configuration file.
+- The number of trackers to use.
+- The IP address and port for UDP streaming of control values.
+
+The following buttons are used to compute and stream the control values:
+
+- **Initialize**: start the connection using the configuration already selected in the GUI.
+- **Calibrate**: perform PCA calibration. The user should repeat the target motion 8 to 10 times.
+- **Calibrate 2-Arm**: perform a calibration with a single Movella sensor, selected in advance, by setting the start and end posture positions.
+- **Start Compute**: compute the control value from one or two calibrations, and stream the values to the configured IP address and port over UDP. Up to two control values can be streamed at the same time.
+- **Cleanup**: stop the connection with the Movellas.
+
+In the following an example of the procedure to compute calibration and online control:
+
+A short demo video is available here: [control_extraction.mp4](media/control_extraction.mp4).
+
+An example using two control signals is shown here: [dual_control.jpg](media/dual_control.jpg)
+
+# Cite Us!
+
+If you found this work useful for developing your own research, please consider citing us using the following BibTeX entry:
+
+
+```bibtex
 @article{pozzi2025wearable,
-author = {Maria Pozzi and Nicole D’Aurizio and Bernardo Brogi and Giovanni Cortigiani and Leonardo Franco and Manish Shukla and Alessandro Giannotta and Simone Rossi and Sarah Skavron and Susanne Frennert and Gionata Salvietti and Monica Malvezzi and Domenico Prattichizzo},
-title ={Wearable and grounded supernumerary robotic limbs for sensorimotor augmentation in post-stroke patients},
-journal = {The International Journal of Robotics Research},
-volume = {0},
-number = {0},
-pages = {02783649251403013},
-year = {2025},
-doi = {10.1177/02783649251403013},
-URL = {https://doi.org/10.1177/02783649251403013},
+   author = {Maria Pozzi and Nicole D’Aurizio and Bernardo Brogi and Giovanni Cortigiani and Leonardo Franco and Manish Shukla and Alessandro Giannotta and Simone Rossi and Sarah Skavron and Susanne Frennert and Gionata Salvietti and Monica Malvezzi and Domenico Prattichizzo},
+   title = {Wearable and grounded supernumerary robotic limbs for sensorimotor augmentation in post-stroke patients},
+   journal = {The International Journal of Robotics Research},
+   volume = {0},
+   number = {0},
+   year = {2025},
+   doi = {10.1177/02783649251403013},
+   url = {https://doi.org/10.1177/02783649251403013}
 }
 ```
+
+
