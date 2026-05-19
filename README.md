@@ -120,7 +120,7 @@ pip install ./movelladot_pc_sdk-2023.6.0-cp38-none-linux_x86_64.whl
 To extract a control signal from a single arm, wear the Movella sensors as shown below:
 
 <p align="center">
-   <img src="media/movella_placement.jpg" alt="Wear the Movellas setup" width="200" />
+   <img src="media/movella_placement.png" alt="Wear the Movellas setup" width="200" />
 </p>
 
 Start the GUI with:
@@ -150,13 +150,7 @@ The following buttons are used to compute and stream the control values:
 - **Start Compute**: compute the control value from one or two calibrations, and stream the values to the configured IP address and port over UDP. Up to two control values can be streamed at the same time.
 - **Cleanup**: stop the connection with the Movellas.
 
-In the following an example of the procedure to compute calibration and online control:
-
-<p align="center">
-   <video src="media/control_extraction.mp4" controls width="600">
-      Your browser does not support the video tag. Download the video here: <a href="media/control_extraction.mp4">control_extraction.mp4</a>
-   </video>
-</p>
+In this [video](https://youtu.be/9voO1PvXCxg) an example of the procedure to compute calibration and online control.
 
 An example using two control signals is shown here: 
 <p align="center">
