@@ -119,7 +119,9 @@ pip install ./movelladot_pc_sdk-2023.6.0-cp38-none-linux_x86_64.whl
 
 To extract a control signal from a single arm, wear the Movella sensors as shown below:
 
-<img src="media/movella_placement.jpg" alt="Wear the Movellas setup" width="400" />
+<p align="center">
+   <img src="media/movella_placement.jpg" alt="Wear the Movellas setup" width="200" />
+</p>
 
 Start the GUI with:
 
@@ -129,7 +131,9 @@ python movella_gui.py
 
 The GUI will open as shown here:
 
-<img src="media/movella_gui.png" alt="GUI" width="400" />
+<p align="center">
+   <img src="media/movella_gui.png" alt="GUI" width="400" />
+</p>
 
 From the GUI, you can configure:
 
@@ -148,12 +152,16 @@ The following buttons are used to compute and stream the control values:
 
 In the following an example of the procedure to compute calibration and online control:
 
-<video src="media/control_extraction.mp4" controls width="600">
-   Your browser does not support the video tag. Download the video here: <a href="media/control_extraction.mp4">control_extraction.mp4</a>
-</video>
+<p align="center">
+   <video src="media/control_extraction.mp4" controls width="600">
+      Your browser does not support the video tag. Download the video here: <a href="media/control_extraction.mp4">control_extraction.mp4</a>
+   </video>
+</p>
 
 An example using two control signals is shown here: 
-<img src="media/dual_control.jpg" alt="Dual control with Movellas" width="600" />
+<p align="center">
+   <img src="media/dual_control.jpg" alt="Dual control with Movellas" width="600" />
+</p>
 
 # Cite Us!
 
