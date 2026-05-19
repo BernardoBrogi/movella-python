@@ -81,7 +81,7 @@ class MovellaGUI:
         self.start_btn = ttk.Button(btn_frame, text="Start Compute", command=self.start_compute)
         self.start_btn.grid(column=3, row=0, padx=4)
 
-        self.cleanup_btn = ttk.Button(btn_frame, text="Cleanup", command=self.cleanup)
+        self.cleanup_btn = ttk.Button(btn_frame, text="Cleanup", command=lambda: self.cleanup(close_gui=True))
         self.cleanup_btn.grid(column=4, row=0, padx=4)
 
         # Log area
@@ -97,6 +97,8 @@ class MovellaGUI:
 
         # State
         self.compute_running = False
+        # Keep track of IMU names used for 2-arm calibration (append as calibrations finish)
+        self.calibrated_imus = []
 
     def _ask_imu_name(self, title, prompt, default_value="2arm"):
         if threading.current_thread() is not threading.main_thread():
@@ -167,6 +169,13 @@ class MovellaGUI:
         def target():
             try:
                 self.tracker.calibrate_2arm(imu=imu_name, saved_data=False)
+                # Record the IMU name used for this 2-arm calibration so compute can use it
+                try:
+                    if imu_name and imu_name not in self.calibrated_imus:
+                        self.calibrated_imus.append(imu_name)
+                        print(f"Recorded 2-arm calibration IMU name: {imu_name}")
+                except Exception:
+                    pass
             except Exception as e:
                 print(f"2-Arm calibration error: {e}")
 
@@ -192,7 +201,17 @@ class MovellaGUI:
             try:
                 self.compute_running = True
                 if int(self.n_entry.get().strip()) <= 2:
-                    self.tracker.compute_easy_kernel(send_ip=send_ip, send_port=send_port, plot_data=True)
+                    # Prefer the last two recorded calibrated IMU names (most recent first)
+                    if len(self.calibrated_imus) >= 2:
+                        tracker2 = self.calibrated_imus[-1]
+                        tracker1 = self.calibrated_imus[-2]
+                    elif len(self.calibrated_imus) == 1:
+                        tracker1 = self.calibrated_imus[0]
+                        tracker2 = "hand" if tracker1 != "hand" else "2arm"
+                    else:
+                        tracker1 = "2arm"
+                        tracker2 = "hand"
+                    self.tracker.compute_easy_kernel(send_ip=send_ip, send_port=send_port, plot_data=True, tracker1=tracker1, tracker2=tracker2)
                 else:
                     # Use compute_kernel with plot_data=True so the realtime plot appears
                     self.tracker.compute_kernel(send_ip=send_ip, send_port=send_port, plot_data=True)
@@ -200,23 +219,60 @@ class MovellaGUI:
                 print(f"Compute error: {e}")
             finally:
                 self.compute_running = False
+                # After compute finishes, perform cleanup and close the GUI
+                try:
+                    self.cleanup(close_gui=True)
+                except Exception:
+                    pass
 
         self.compute_thread = threading.Thread(target=runner, daemon=True)
         self.compute_thread.start()
 
-    def cleanup(self):
+    def cleanup(self, close_gui=False):
+        """Cleanup tracker resources. If close_gui is True, also close the GUI and exit.
+
+        Note: GUI close/destroy is scheduled on the main thread using `after` to be
+        safe when called from worker threads.
+        """
         if self.tracker:
             print("Running cleanup...")
             try:
-                self.tracker.end = True
+                # Signal tracker threads to stop
+                try:
+                    self.tracker.end = True
+                except Exception:
+                    pass
                 # give threads a moment
                 time.sleep(0.1)
-                self.tracker.cleanup()
+                try:
+                    self.tracker.cleanup()
+                except Exception as e:
+                    print(f"Cleanup error during tracker.cleanup(): {e}")
             except Exception as e:
                 print(f"Cleanup error: {e}")
             self.tracker = None
         else:
             print("Nothing to cleanup.")
+
+        if close_gui:
+            def do_close():
+                try:
+                    # restore stdout/stderr
+                    sys.stdout = self._stdout
+                    sys.stderr = self._stderr
+                except Exception:
+                    pass
+                try:
+                    self.master.destroy()
+                except Exception:
+                    pass
+
+            try:
+                # Schedule on main thread
+                self.master.after(0, do_close)
+            except Exception:
+                # Fallback: call directly
+                do_close()
 
     def on_closing(self):
         self.cleanup()

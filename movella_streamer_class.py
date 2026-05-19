@@ -13,6 +13,8 @@ from scipy.spatial.transform import Rotation as R
 import functions.getRelativeRotation_movella as getRelativeRotation_movella 
 from pynput.keyboard import Listener, Key
 import keyboard
+import os
+
 
 class MovellaStreamer:
     def __init__(self, config_path, setup_name, udp_ip=None, udp_port=None, frequency=60, n_trackers=5):
@@ -52,6 +54,22 @@ class MovellaStreamer:
         # Setup keyboard listener
         self.listener = Listener(on_press=self._on_press)
         self.listener.start()
+    
+    def _ensure_data_dir(self, filename):
+        """Ensure the top-level 'data' folder exists when saving into it.
+
+        This creates only the project-local 'data' directory and does nothing
+        for other paths.
+        """
+        # Normalize and split path to check first component
+        norm = os.path.normpath(filename)
+        parts = norm.split(os.sep)
+        if parts and parts[0] == "data":
+            dirpath = os.path.join(os.getcwd(), "data")
+            try:
+                os.makedirs(dirpath, exist_ok=True)
+            except PermissionError as e:
+                raise RuntimeError(f"Cannot create data directory '{dirpath}': {e}")
     
     def _on_press(self, key):
         # This function runs on the background and checks if a keyboard key was pressed
@@ -363,6 +381,7 @@ class MovellaStreamer:
                 import datetime
                 currentDateTime = datetime.datetime.now().strftime('%Y_%m_%d_%H%M%S')
                 filename = f"data/{filename_prefix}_{currentDateTime}.mat"
+                self._ensure_data_dir(filename)
 
                 savemat(filename, {
                     'tracked_data': all_data_save,
@@ -572,6 +591,7 @@ class MovellaStreamer:
                 else:
                     filename = f"data/{filename_prefix}_2arm_{currentDateTime}.mat"
 
+                self._ensure_data_dir(filename)
                 savemat(filename, {
                     'tracked_data_2arm': all_data_save,
                     'q_start': q_start,
@@ -583,18 +603,22 @@ class MovellaStreamer:
                 print(f"PHASE 2: Data saved to {filename}")
 
         if self.n_trackers <=2:
-            savemat(f"movellaValue_{imu}.mat", {
+            filename = f"movellaValue_{imu}.mat"
+            savemat(filename, {
                 'tracked_data_2arm': all_data,
                 'q_start_array': q_start_array,
                 'q_end_array': q_end_array
             })
              
         else:
-            savemat("movellaValue2Phase.mat", {
+            filename = f"movellaValue_2arm.mat" 
+            savemat(filename, {
                 'tracked_data_2arm': all_data,
                 'q_start_array': q_start_array,
                 'q_end_array': q_end_array
             })
+            
+        print(f"Calibration completed and saved to {filename}")
 
     
     
@@ -740,7 +764,7 @@ class MovellaStreamer:
                 self._close_realtime_plot()
             print("UDP socket closed.")
 
-    def compute_easy_kernel(self, send_ip="172.16.0.1", send_port=8052, plot_data=False):
+    def compute_easy_kernel(self, send_ip="172.16.0.1", send_port=8052, plot_data=False, tracker1="2arm", tracker2="hand"):
         SEND_IP = send_ip
         SEND_PORT1 = send_port
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -752,7 +776,8 @@ class MovellaStreamer:
         flip_sign_hand = 1  # Variable to track sign flipping
 
         # Load data calibration 
-        hand_data = loadmat("movellaValue_hand.mat")
+        
+        hand_data = loadmat(f"movellaValue_{tracker1}.mat")
         # trigger_data = loadmat("movellaValue2Phase.mat", squeeze_me=True)
 
         q_start = hand_data["q_start_array"].flatten()  # Start quaternion
@@ -773,7 +798,7 @@ class MovellaStreamer:
             flip_sign_2arm = 1  # Variable to track sign flipping
 
              # Load data calibration 
-            secondArm_data = loadmat("movellaValue_2arm.mat")
+            secondArm_data = loadmat(f"movellaValue_{tracker2}.mat")
             # trigger_data = loadmat("movellaValue2Phase.mat", squeeze_me=True)
 
             q_start = secondArm_data["q_start_array"].flatten()  # Start quaternion
