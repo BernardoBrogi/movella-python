@@ -211,19 +211,18 @@ class MovellaGUI:
                     else:
                         tracker1 = "2arm"
                         tracker2 = "hand"
+                        
+                    print("Use 'c' and 't' keys to change signs")
                     self.tracker.compute_easy_kernel(send_ip=send_ip, send_port=send_port, plot_data=True, tracker1=tracker1, tracker2=tracker2)
                 else:
                     # Use compute_kernel with plot_data=True so the realtime plot appears
+                    print("Use 'c' and 't' keys to change signs")
                     self.tracker.compute_kernel(send_ip=send_ip, send_port=send_port, plot_data=True)
             except Exception as e:
                 print(f"Compute error: {e}")
             finally:
                 self.compute_running = False
-                # After compute finishes, perform cleanup and close the GUI
-                try:
-                    self.cleanup(close_gui=True)
-                except Exception:
-                    pass
+                print("Compute finished.")
 
         self.compute_thread = threading.Thread(target=runner, daemon=True)
         self.compute_thread.start()

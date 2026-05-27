@@ -641,6 +641,7 @@ class MovellaStreamer:
         # State variables
         controlVal_01 = 0.0
         flip_sign_control = 1  # Variable to track sign flipping
+        prev_c_pressed = False
 
         self.end = False
 
@@ -671,14 +672,22 @@ class MovellaStreamer:
             print("Starting kernel loop. Press ESC to stop.")
             while not self.end:
 
-                if keyboard.is_pressed("c"):  # Check if "s" is pressed
+                c_pressed = keyboard.is_pressed("c")
+                if c_pressed and not prev_c_pressed:
                     flip_sign_control *= -1  # Toggle between 1 and -1
+                    print(f"Control sign flipped: {flip_sign_control}")
                     time.sleep(0.1)  # Add a small delay to prevent multiple triggers
+                prev_c_pressed = c_pressed
 
                 if self.n_trackers == 5:   
-                    if keyboard.is_pressed("t"):  # Check if "w" is pressed
+                    if 'prev_t_pressed' not in locals():
+                        prev_t_pressed = False
+                    t_pressed = keyboard.is_pressed("t")
+                    if t_pressed and not prev_t_pressed:  # Toggle once per key press
                         flip_sign_trigger *= -1   # Reset to default
+                        print(f"Trigger sign flipped: {flip_sign_trigger}")
                         time.sleep(0.1)
+                    prev_t_pressed = t_pressed
                     
                 latest = self.get_latest_data()  # from your class
                 data = latest["data"] if latest is not None else None
@@ -774,6 +783,7 @@ class MovellaStreamer:
         # State variables
         controlVal_hand = 0.0
         flip_sign_hand = 1  # Variable to track sign flipping
+        prev_c_pressed = False
 
         # Load data calibration 
         
@@ -796,6 +806,7 @@ class MovellaStreamer:
         if self.n_trackers == 2:
             controlVal_2arm = 0.0
             flip_sign_2arm = 1  # Variable to track sign flipping
+            prev_t_pressed = False
 
              # Load data calibration 
             secondArm_data = loadmat(f"movellaValue_{tracker2}.mat")
@@ -819,14 +830,20 @@ class MovellaStreamer:
             print("Starting kernel loop. Press ESC to stop.")
             while not self.end:
 
-                if keyboard.is_pressed("c"):  # Check if "s" is pressed
+                c_pressed = keyboard.is_pressed("c")
+                if c_pressed and not prev_c_pressed:
                     flip_sign_hand *= -1  # Toggle between 1 and -1
+                    print(f"Hand sign flipped: {flip_sign_hand}")
                     time.sleep(0.1)  # Add a small delay to prevent multiple triggers
+                prev_c_pressed = c_pressed
 
                 if self.n_trackers == 2:   
-                    if keyboard.is_pressed("t"):  # Check if "w" is pressed
+                    t_pressed = keyboard.is_pressed("t")
+                    if t_pressed and not prev_t_pressed:  # Toggle once per key press
                         flip_sign_2arm *= -1   # Reset to default
+                        print(f"2-arm sign flipped: {flip_sign_2arm}")
                         time.sleep(0.1)
+                    prev_t_pressed = t_pressed
                     
                 latest = self.get_latest_data()  # from your class
                 data = latest["data"] if latest is not None else None
