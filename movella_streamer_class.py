@@ -1,6 +1,7 @@
 import socket
 import struct
 import time
+import warnings
 import numpy as np
 import json
 from functions.xdpchandler import *
@@ -8,12 +9,17 @@ from sys import version_info as python_version_info
 from sklearn.decomposition import PCA
 from scipy.io import savemat, loadmat
 from scipy.signal import find_peaks
+import matplotlib
+matplotlib.use('TkAgg')  # Use thread-safe backend
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation as R
-import functions.getRelativeRotation_movella as getRelativeRotation_movella 
+import functions.getRelativeRotation_movella as getRelativeRotation_movella
 from pynput.keyboard import Listener, Key
 import keyboard
 import os
+
+# Suppress matplotlib threading warning (graph works fine despite warning)
+warnings.filterwarnings('ignore', message='.*Starting a Matplotlib GUI outside of the main thread.*')
 
 
 class MovellaStreamer:
